@@ -2,6 +2,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using TMPro;
 
 public class EditorManager : MonoBehaviour
 {
@@ -12,86 +13,76 @@ public class EditorManager : MonoBehaviour
     public Camera mainCam;
     public Camera editorCam;
 
-    public bool editorMode;
+    public bool editorMode = false;
 
     Vector3 mousePos;
     public GameObject prefab1;
     public GameObject prefab2;
-    GameObject item;
+    public GameObject item;
+    public TMP_InputField yInput;
+    public float ypos = 0f;
     public bool instantiated = false;
 
-    //Will send notifications that something has happened to whoever is interested
-    Subject subject = new Subject();
+    //Edited
+    public int unit = 1;
+    Vector3 defaultPos;
 
-    private void OnEnable() {
-        inputAction.Enable();
-    }
+    // Command
+    ICommand command;
 
-    private void OnDisable() {
-        inputAction.Disable();
-    }
+    // UIManager
+    UIManager ui;
 
-    // Start is called before the first frame update
-    void Awake()
-    {
+    private void Awake() {
         if(instance == null)
         {
             instance = this;
         }
 
-        inputAction = new PlayerAction();
+        //Edited
+        defaultPos = new Vector3(0, editorCam.transform.position.y, 0);
+    }
+
+    // Start is called before the first frame update
+    void Start()
+    {
+        inputAction = PlayerInputController.controller.inputAction;
 
         inputAction.Editor.EditorMode.performed += cntxt => EnterEditorMode();
 
-        inputAction.Editor.AddItem1.performed += cntxt => AddItem(1);
-        inputAction.Editor.AddItem2.performed += cntxt => AddItem(2);
+        // Edited
         inputAction.Editor.DropItem.performed += cntxt => DropItem();
-               
-        editorMode = false;
 
         mainCam.enabled = true;
         editorCam.enabled = false;  
+
+        ui = GetComponent<UIManager>();
     }  
 
     public void EnterEditorMode()
     {
         mainCam.enabled = !mainCam.enabled;
         editorCam.enabled = !editorCam.enabled;
+
+        ui.ToggleEditorUI();
     }
 
-    public void AddItem(int itemId)
-    {
-        if(editorMode && !instantiated)
-        {
-            switch (itemId)
-            {
-                case 1:
-                    item = Instantiate(prefab1);
-                    //Create boxes that can observe events and give them an event to do
-                    SpikeBall spike1 = new SpikeBall(item, new GreenMat());
-                    //Add the boxes to the list of objects waiting for something to happen
-                    subject.AddObserver(spike1);
-                    break;
-                case 2:
-                    item = Instantiate(prefab2);
-                    //Create boxes that can observe events and give them an event to do
-                    SpikeBall spike2 = new SpikeBall(item, new YellowMat());
-                    //Add the boxes to the list of objects waiting for something to happen
-                    subject.AddObserver(spike2);
-                    break;
-                default:
-                    break;
-            }
-            instantiated = true; 
-        }        
-    }
+    // AddItem() was removed
 
     public void DropItem()
     {
         if(editorMode && instantiated)
         {
-            item.GetComponent<Rigidbody>().useGravity = true;
+            if(item.GetComponent<Rigidbody>())
+            {
+                item.GetComponent<Rigidbody>().useGravity = true;
+            }
             item.GetComponent<Collider>().enabled = true;
+
+            // Add item transform to items list
+            command = new PlaceItemCommand(item.transform.position, item.transform);
+            CommandInvoker.AddCommand(command);
+
             instantiated = false; 
         }        
     }
@@ -99,28 +90,67 @@ public class EditorManager : MonoBehaviour
     // Update is called once per frame
     void Update()
     {
+        // Edited
+        // Checking if we are in editor mode
         if(mainCam.enabled == false && editorCam.enabled == true)
         {
+            // Stop all movement in game
             Time.timeScale = 0;
             editorMode = true;  
+
+            // Making cursor visible when in editor mode
             Cursor.lockState = CursorLockMode.None;          
+        }
+        else if(GameplayManager.gameplay.isDead || GameplayManager.gameplay.isWon)
+        {
+            // Stop all movement in game
+            Time.timeScale = 0;
+
+            // Making cursor visible when in editor mode
+            Cursor.lockState = CursorLockMode.None;  
         }
         else
         {
             Time.timeScale = 1;
             editorMode = false;
+
+            // Making cursor invisible when in play mode
             Cursor.lockState = CursorLockMode.Locked;
         }
 
         if(instantiated)
         {
+            ypos = int.Parse(yInput.text);
             mousePos = Mouse.current.position.ReadValue();
-            mousePos = new Vector3(mousePos.x, mousePos.y, 40f);
+            mousePos = new Vector3(mousePos.x, mousePos.y, editorCam.transform.position.y - ypos);
  
             item.transform.position = editorCam.ScreenToWorldPoint(mousePos);
-
-            subject.Notify();
         }
         
+    }
+
+    // Added
+    public void MoveCameraPos(string direction)
+    {
+        switch (direction)
+        {
+            case "up":
+                editorCam.transform.Translate(transform.forward * unit, Space.World);
+                break;
+            case "down":
+                editorCam.transform.Translate(transform.forward * -unit, Space.World);
+                break;
+            case "left":
+                editorCam.transform.Translate(transform.right * -unit, Space.World);
+                break;
+            case "right":
+                editorCam.transform.Translate(transform.right * unit, Space.World);
+                break;
+            case "reset":
+                editorCam.transform.position = defaultPos;
+                break;
+            default:
+                break;
+        }
     }
 }

@@ -1,5 +1,17 @@
 # GED_Base
 
-This is the base project that we created in lab. All player controls are added including looking around with mouse. This base has enemies as well using NavMeshAgent.
+## Game Controls
+WASD to move<br />
+Mouse to look around<br />
+LMB to shoot<br />
+ESC to quit the game<br />
 
-If you press "1" button, an item will be instantiated and by clicking RMB, you can drop the item. "2" button will create the same item but with different mass. This part is related to observer pattern which I'll explain more in the class.
+## Game Editor
+E to enter editor mode<br />
+F to save spike positions into save.txt<br />
+RMB to place items into the scene<br />
+Z to undo the last action<br />
+Use the dropdown to select the category of the item you want to create<br />
+Use arrow buttons to move around the editor camera<br />
+
+You can find the build in the Build folder.
